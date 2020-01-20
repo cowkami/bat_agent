@@ -72,8 +72,8 @@ class BatFlyingEnv(gym.Env):
         self.lower_bound_freq_emit_pulse = 0.3
 
         self.flying_angle_reward = -10.0
-        self.pulse_reward = -0.0001
-        self.pulse_angle_reward = -0.0001
+        self.pulse_reward = -1.0
+        self.pulse_angle_reward = -1.0
         self.bump_reward = -100
         self.low_speed_reward = -100
         self.fliyng_reward = 1
