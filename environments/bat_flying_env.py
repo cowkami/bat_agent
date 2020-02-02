@@ -1,4 +1,6 @@
 import math
+from typing import List
+from collections import namedtuple
 import gym
 from gym import spaces, logger
 from gym.utils import seeding
@@ -9,6 +11,50 @@ from .lidar_bat import *
 
 
 FPS = 60
+
+
+import json
+from datetime import datetime
+class Recorder:
+    def __init__(self):
+        dt = datetime.today()
+        self.filename = f'{dt.year}{dt.month:02}{dt.day:02}T{dt.hour:02}{dt.minute:02}{dt.second:02}.json'
+        self.trajectory = []
+        self.actions = []
+        self.emit = []
+        self.states = []
+        self.rewards = []
+    
+    def _append_ndarray(self, lst: List, arr: np.ndarray):
+        lst.append(arr.tolist())
+
+    def add_trajectory(self, coor):
+        self.trajectory.append(coor.tolist())
+
+    def add_action(self, action):
+        self.actions.append(action.tolist())
+
+    def add_states(self, state):
+        self.states.append(state.tolist())
+    
+    def add_reward (self, reward):
+        self.rewards.append(reward)
+    
+    def add_emit(self, emit_flag):
+        self.emit.append(1 if emit_flag else 0)
+
+    def save(self):
+        self.record = {
+            'trajectory': self.trajectory,
+            'actions': self.actions,
+            'emit': self.emit,
+            'states': self.states,
+            'rewards': self.rewards,
+            'step num': len(self.rewards)
+        }
+        base_dir = '/home/lee/python_codes/bat_agent/data/recorder/'
+        with open(base_dir + self.filename, 'w') as f:
+            json.dump(self.record, f)
 
 
 
@@ -72,8 +118,8 @@ class BatFlyingEnv(gym.Env):
         self.lower_bound_freq_emit_pulse = 0.3
 
         self.flying_angle_reward = -10.0
-        self.pulse_reward = -1.0
-        self.pulse_angle_reward = -1.0
+        self.pulse_reward = -0.01
+        self.pulse_angle_reward = -0.01
         self.bump_reward = -100
         self.low_speed_reward = -100
         self.fliyng_reward = 1
@@ -119,6 +165,7 @@ class BatFlyingEnv(gym.Env):
         
         self.viewer = None
         self.state = None
+        self.recorder = None
         self.seed()
 
     def seed(self, seed=None):
@@ -127,6 +174,8 @@ class BatFlyingEnv(gym.Env):
    
     def step(self, action):
         action = np.clip(action, self.action_low, self.action_high)
+        self.recorder.add_trajectory(self.bat.bat_vec)
+        self.recorder.add_action(action)
         step_reward = self.fliyng_reward
         done = False
         flying_angle, pulse_angle, pulse_proba = action
@@ -134,6 +183,7 @@ class BatFlyingEnv(gym.Env):
 
         bat_p0 = Point(*self.bat.bat_vec)
         self.bat.move(flying_angle * self.max_flying_angle)
+
         bat_p1 = Point(*self.bat.bat_vec)
         bat_seg = Segment(bat_p0, bat_p1)
         for w in self.walls:
@@ -152,6 +202,7 @@ class BatFlyingEnv(gym.Env):
             self.last_pulse_angle = pulse_angle
             step_reward += self.pulse_reward
             step_reward += self.pulse_angle_reward * np.abs(pulse_angle)
+        self.recorder.add_emit(self.bat.emit)
 
         if np.linalg.norm(self.bat.v_vec) < 1:
             step_reward += self.low_speed_reward
@@ -161,9 +212,14 @@ class BatFlyingEnv(gym.Env):
         if 1 < self.t:
             done = True
         self._update_observation()
+        self.recorder.add_states(self.state)
+        self.recorder.add_reward(step_reward)
         return self.state, step_reward, done, {}
 
     def reset(self):
+        if self.recorder:
+            self.recorder.save()
+        self.recorder = Recorder()
         self._reset_bat()
         self._reset_walls()
         self.t = 0.0
@@ -215,7 +271,7 @@ class BatFlyingEnv(gym.Env):
     def render(self, mode='human', screen_width=1000):
         # whether draw pulse and echo source
         draw_pulse_direction = True
-        draw_echo_source = True
+        draw_echo_source = False
         draw_bat_trajectory = True
 
         # settings screen
@@ -302,6 +358,9 @@ class BatFlyingEnv(gym.Env):
             self.last_bat_vec = np.copy(self.bat.bat_vec)
 
     def close(self):
+        # if self.recorder:
+        #     self.recorder.save()
+        #     self.recorder = None
         if self.viewer:
             self.viewer.close()
             self.viewer = None
