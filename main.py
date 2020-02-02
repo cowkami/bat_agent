@@ -5,7 +5,6 @@ import gym
 from gym import wrappers
 
 import environments
-from agents.dqn.dqn import *
 
 # for debug
 from gym import logger
