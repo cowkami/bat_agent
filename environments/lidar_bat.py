@@ -78,7 +78,7 @@ class LidarBat(object):
         self.body_weight = 23e-3 # [kg]
         self.size = 7e-2  # [m]
 
-        self.n_memory = 5  # number of states
+        self.n_memory = 1  # number of states
         self.state = np.array([[0, np.inf] for i in range(self.n_memory)])
         self.emit = False
 

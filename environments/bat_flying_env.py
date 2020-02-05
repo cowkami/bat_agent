@@ -228,6 +228,7 @@ class BatFlyingEnv(gym.Env):
         return self.state
 
     def _reset_bat(self):
+        # TODO: use normal distribution
         low = np.array([-math.pi/48, 0.02, 0.7])
         high = np.array([math.pi/48, 0.2, 0.8])
         # margin = 0.2
